@@ -2,6 +2,8 @@ package com.example.demo.controllers;
 
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,8 @@ import com.example.demo.model.persistence.repositories.CartRepository;
 import com.example.demo.model.persistence.repositories.UserRepository;
 import com.example.demo.model.requests.CreateUserRequest;
 
+import javax.persistence.EntityNotFoundException;
+
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -32,8 +36,18 @@ public class UserController {
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
 
+	public static final Logger log = LoggerFactory.getLogger(UserController.class);
+
 	@GetMapping("/id/{id}")
 	public ResponseEntity<User> findById(@PathVariable Long id) {
+		try {
+			if (userRepository.findById(id)==null){
+				throw new EntityNotFoundException();
+			}
+		}catch (EntityNotFoundException e){
+			log.error("User not found");
+			return ResponseEntity.notFound().build();
+		}
 		return ResponseEntity.of(userRepository.findById(id));
 	}
 	
@@ -54,10 +68,12 @@ public class UserController {
 				!createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())){
 			//System.out.println("Error - Either length is less than 7 or pass and conf pass do not match. Unable to create ",
 			//		createUserRequest.getUsername());
+			log.debug("Error - Either length is less than 7 or pass and conf pass do not match. Unable to create "+createUserRequest.getUsername());
 			return ResponseEntity.badRequest().build();
 		}
 		user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
 		userRepository.save(user);
+		log.info("User created successfully");
 		return ResponseEntity.ok(user);
 	}
 	
